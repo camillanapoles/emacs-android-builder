@@ -32,15 +32,28 @@ jobs:
 
       - name: Configure and Build
         run: |
+          # Busca dinâmica dos caminhos exatos para evitar erros de path
           export SDK=$ANDROID_HOME
           export NDK=$ANDROID_HOME/ndk/26.3.11579264
           export PATH=$SDK/build-tools/34.0.0:$PATH
+          
+          ANDROID_JAR=$(find $SDK/platforms -name "android.jar" | grep "android-34" | head -n 1)
+          CLANG_BIN=$(find $NDK/toolchains/llvm -name "aarch64-linux-android34-clang" | head -n 1)
+          CLANGXX_BIN=$(find $NDK/toolchains/llvm -name "aarch64-linux-android34-clang++" | head -n 1)
+          
+          echo "Found android.jar at: $ANDROID_JAR"
+          echo "Found clang at: $CLANG_BIN"
+          
+          if [ -z "$ANDROID_JAR" ] || [ -z "$CLANG_BIN" ]; then
+            echo "Error: Could not find android.jar or clang compiler."
+            exit 1
+          fi
           
           # Prepara o autoconf
           ./autogen.sh
           
           # Configuração exata e isolada para Android ARM64
-          ./configure             --with-android=$SDK/platforms/android-34/android.jar             ANDROID_CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --without-x             --without-dbus             --without-gconf             --without-gsettings             --without-selinux             --with-gnutls=ifavailable             --without-android-debug
+          ./configure             --with-android=$ANDROID_JAR             ANDROID_CC=$CLANG_BIN             ANDROID_CXX=$CLANGXX_BIN             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --without-x             --without-dbus             --without-gconf             --without-gsettings             --without-selinux             --with-gnutls=ifavailable             --without-android-debug
             
           # Compilação
           make -j$(nproc)
