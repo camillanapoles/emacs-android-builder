@@ -11,11 +11,11 @@ jobs:
           repository: emacs-mirror/emacs
           ref: master
 
-      - name: Setup Java JDK 17
+      - name: Setup Java JDK 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Cache Android SDK & NDK
         uses: actions/cache@v4
@@ -47,7 +47,6 @@ jobs:
           export NDK=$ANDROID_HOME/ndk/26.3.11579264
           export PATH=$SDK/build-tools/34.0.0:$PATH
           
-          # FIX: Caminho estrito para o framework base (Ignora o ext10)
           ANDROID_JAR=$SDK/platforms/android-34/android.jar
           CLANG_BIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang
           CLANGXX_BIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang++
@@ -55,16 +54,15 @@ jobs:
           echo "Using android.jar at: $ANDROID_JAR"
           echo "Using clang at: $CLANG_BIN"
           
-          if [ ! -f "$ANDROID_JAR" ]; then
-            echo "Error: android.jar not found at $ANDROID_JAR"
-            exit 1
-          fi
-          
-          # Prepara o autoconf
           ./autogen.sh
           
-          # Configuração exata e isolada para Android ARM64
-          ./configure             --with-android=$ANDROID_JAR             ANDROID_CC=$CLANG_BIN             ANDROID_CXX=$CLANGXX_BIN             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --without-x             --without-dbus             --without-gconf             --without-gsettings             --without-selinux             --with-gnutls=ifavailable             --without-android-debug
+          # Executa o configure. Se falhar, exibe o config.log para auditoria exata.
+          if ! ./configure             --with-android=$ANDROID_JAR             ANDROID_CC=$CLANG_BIN             ANDROID_CXX=$CLANGXX_BIN             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --without-x             --without-dbus             --without-gconf             --without-gsettings             --without-selinux             --with-gnutls=ifavailable             --without-android-debug; then
+              echo "================ CONFIG.LOG =================="
+              cat config.log
+              echo "=============================================="
+              exit 1
+          fi
             
           # Compilação
           make -j$(nproc)
