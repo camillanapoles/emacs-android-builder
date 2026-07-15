@@ -11,17 +11,22 @@ jobs:
           repository: emacs-mirror/emacs
           ref: master
 
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf make gcc texinfo libncurses-dev ncurses-bin m4 g++ git nasm
+          sudo apt-get install -y autoconf make gcc texinfo libncurses-dev ncurses-bin m4 g++ git nasm pkg-config
 
       - name: Accept Licenses and Install Android NDK
         run: |
-          # O comando 'yes' envia 'y' infinitamente para aceitar todas as licenças do Google
           yes | sdkmanager --licenses || true
           yes | sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;26.3.11579264'
 
@@ -29,17 +34,15 @@ jobs:
         run: |
           export SDK=$ANDROID_HOME
           export NDK=$ANDROID_HOME/ndk/26.3.11579264
+          export PATH=$SDK/build-tools/34.0.0:$PATH
           
-          # Compila o terminfo necessário para o terminal interno do Emacs
-          cd etc/e
-          tic -o ../ ./eterm-color.ti || true
-          cd ../../
-          
+          # Prepara o autoconf
           ./autogen.sh
           
-          # Configuração exata para ARM64 (aarch64)
-          ./configure             --with-android=$SDK/platforms/android-34/android.jar             ANDROID_CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --with-gnutls=ifavailable             --without-android-debug
+          # Configuração exata e isolada para Android ARM64
+          ./configure             --with-android=$SDK/platforms/android-34/android.jar             ANDROID_CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --without-x             --without-dbus             --without-gconf             --without-gsettings             --without-selinux             --with-gnutls=ifavailable             --without-android-debug
             
+          # Compilação
           make -j$(nproc)
 
       - name: Upload APK Artifact
