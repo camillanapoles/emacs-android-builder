@@ -1,0 +1,32 @@
+name: Build Emacs Android APK
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GNU Emacs Source
+        uses: actions/checkout@v4
+        with:
+          repository: emacs-mirror/emacs
+          ref: master
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf make gcc texinfo libncurses-dev
+
+      - name: Configure and Build
+        run: |
+          ./autogen.sh
+          ./configure --with-android
+          make -j$(nproc)
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Emacs-Android-APK
+          path: java/emacs.apk
