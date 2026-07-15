@@ -17,6 +17,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Cache Android SDK & NDK
+        uses: actions/cache@v4
+        id: cache-android
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/26.3.11579264
+            /usr/local/lib/android/sdk/platforms/android-34
+            /usr/local/lib/android/sdk/build-tools/34.0.0
+          key: ${{ runner.os }}-android-sdk-ndk-26.3-api34
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
@@ -26,26 +36,27 @@ jobs:
           sudo apt-get install -y autoconf make gcc texinfo libncurses-dev ncurses-bin m4 g++ git nasm pkg-config
 
       - name: Accept Licenses and Install Android NDK
+        if: steps.cache-android.outputs.cache-hit != 'true'
         run: |
           yes | sdkmanager --licenses || true
           yes | sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;26.3.11579264'
 
       - name: Configure and Build
         run: |
-          # Busca dinâmica dos caminhos exatos para evitar erros de path
           export SDK=$ANDROID_HOME
           export NDK=$ANDROID_HOME/ndk/26.3.11579264
           export PATH=$SDK/build-tools/34.0.0:$PATH
           
-          ANDROID_JAR=$(find $SDK/platforms -name "android.jar" | grep "android-34" | head -n 1)
-          CLANG_BIN=$(find $NDK/toolchains/llvm -name "aarch64-linux-android34-clang" | head -n 1)
-          CLANGXX_BIN=$(find $NDK/toolchains/llvm -name "aarch64-linux-android34-clang++" | head -n 1)
+          # FIX: Caminho estrito para o framework base (Ignora o ext10)
+          ANDROID_JAR=$SDK/platforms/android-34/android.jar
+          CLANG_BIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang
+          CLANGXX_BIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang++
           
-          echo "Found android.jar at: $ANDROID_JAR"
-          echo "Found clang at: $CLANG_BIN"
+          echo "Using android.jar at: $ANDROID_JAR"
+          echo "Using clang at: $CLANG_BIN"
           
-          if [ -z "$ANDROID_JAR" ] || [ -z "$CLANG_BIN" ]; then
-            echo "Error: Could not find android.jar or clang compiler."
+          if [ ! -f "$ANDROID_JAR" ]; then
+            echo "Error: android.jar not found at $ANDROID_JAR"
             exit 1
           fi
           
