@@ -17,16 +17,31 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf make gcc texinfo libncurses-dev
+          sudo apt-get install -y autoconf make gcc texinfo libncurses-dev ncurses-bin m4 g++ git nasm
+
+      - name: Install Android NDK & Build Tools
+        run: |
+          echo "y" | sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;26.3.11579264'
 
       - name: Configure and Build
         run: |
+          export SDK=$ANDROID_HOME
+          export NDK=$ANDROID_HOME/ndk/26.3.11579264
+          
+          # Compila o terminfo necessário para o terminal interno do Emacs
+          cd etc/e
+          tic -o ../ ./eterm-color.ti || true
+          cd ../../
+          
           ./autogen.sh
-          ./configure --with-android
+          
+          # Configuração exata para ARM64 (aarch64)
+          ./configure             --with-android=$SDK/platforms/android-34/android.jar             ANDROID_CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang             SDK_BUILD_TOOLS=$SDK/build-tools/34.0.0             --with-gnutls=ifavailable             --without-android-debug
+            
           make -j$(nproc)
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Emacs-Android-APK
-          path: java/emacs.apk
+          path: java/emacs*.apk
