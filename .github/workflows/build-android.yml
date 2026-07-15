@@ -19,9 +19,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y autoconf make gcc texinfo libncurses-dev ncurses-bin m4 g++ git nasm
 
-      - name: Install Android NDK & Build Tools
+      - name: Accept Licenses and Install Android NDK
         run: |
-          echo "y" | sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;26.3.11579264'
+          # O comando 'yes' envia 'y' infinitamente para aceitar todas as licenças do Google
+          yes | sdkmanager --licenses || true
+          yes | sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;26.3.11579264'
 
       - name: Configure and Build
         run: |
